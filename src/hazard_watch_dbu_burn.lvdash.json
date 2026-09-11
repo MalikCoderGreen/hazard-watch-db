@@ -1,0 +1,161 @@
+{
+    "datasets": [
+        {
+            "name": "e1a1b001",
+            "displayName": "hazard_watch_billing",
+            "config": {
+                "source": "WITH hazard_watch_usage AS (\n  SELECT\n    u.usage_date,\n    u.usage_start_time,\n    u.sku_name,\n    u.usage_quantity,\n    COALESCE(j.name, p.name) AS resource_name\n  FROM system.billing.usage u\n  LEFT JOIN system.lakeflow.jobs j ON u.usage_metadata.job_id = j.job_id\n  LEFT JOIN system.lakeflow.pipelines p ON u.usage_metadata.dlt_pipeline_id = p.pipeline_id\n  WHERE j.name RLIKE 'hazard_ingestion_job|storm_events_etl|gold_etl'\n     OR p.name RLIKE 'dlt_earthquakes_pipeline|dlt_alerts_pipeline|dlt_gold_pipeline'\n),\npriced AS (\n  SELECT\n    h.*,\n    lp.pricing.default AS unit_price_usd,\n    h.usage_quantity * lp.pricing.default AS cost_usd\n  FROM hazard_watch_usage h\n  LEFT JOIN system.billing.list_prices lp\n    ON h.sku_name = lp.sku_name\n   AND lp.currency_code = 'USD'\n   AND h.usage_start_time >= lp.price_start_time\n   AND (lp.price_end_time IS NULL OR h.usage_start_time < lp.price_end_time)\n)\nSELECT * FROM priced",
+                "dimensions": [
+                    {"expr": "resource_name"},
+                    {"expr": "usage_date"},
+                    {"expr": "sku_name"}
+                ],
+                "measures": [
+                    {
+                        "name": "total_cost_usd",
+                        "displayName": "Total cost (USD)",
+                        "expr": "SUM(cost_usd)"
+                    },
+                    {
+                        "name": "pct_of_cap",
+                        "displayName": "% of $400 budget cap",
+                        "expr": "SUM(cost_usd) / 400 * 100"
+                    },
+                    {
+                        "name": "record_count",
+                        "displayName": "Usage records",
+                        "expr": "COUNT(*)"
+                    }
+                ],
+                "version": "1.1"
+            }
+        }
+    ],
+    "pages": [
+        {
+            "name": "dbu_burn_page",
+            "displayName": "DBU Burn vs. $400 Cap",
+            "pageType": "PAGE_TYPE_CANVAS",
+            "layoutVersion": "GRID_V1",
+            "layout": [
+                {
+                    "position": {"x": 0, "y": 0, "width": 3, "height": 3},
+                    "widget": {
+                        "name": "total_cost_counter",
+                        "queries": [
+                            {
+                                "name": "total_cost_query",
+                                "query": {
+                                    "datasetName": "e1a1b001",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "MEASURE(`total_cost_usd`)", "name": "measure(total_cost_usd)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 2,
+                            "widgetType": "counter",
+                            "data": {"queryName": "total_cost_query"},
+                            "encodings": {
+                                "value": {"fieldName": "measure(total_cost_usd)", "displayName": "Total cost (USD)"}
+                            },
+                            "frame": {"showTitle": true, "title": "Total DBU Cost (USD)"}
+                        }
+                    }
+                },
+                {
+                    "position": {"x": 3, "y": 0, "width": 3, "height": 3},
+                    "widget": {
+                        "name": "pct_of_cap_counter",
+                        "queries": [
+                            {
+                                "name": "pct_of_cap_query",
+                                "query": {
+                                    "datasetName": "e1a1b001",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "MEASURE(`pct_of_cap`)", "name": "measure(pct_of_cap)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 2,
+                            "widgetType": "counter",
+                            "data": {"queryName": "pct_of_cap_query"},
+                            "encodings": {
+                                "value": {"fieldName": "measure(pct_of_cap)", "displayName": "% of $400 cap"}
+                            },
+                            "frame": {"showTitle": true, "title": "% of $400 Budget Cap Used"}
+                        }
+                    }
+                },
+                {
+                    "position": {"x": 0, "y": 3, "width": 12, "height": 6},
+                    "widget": {
+                        "name": "cost_by_resource",
+                        "queries": [
+                            {
+                                "name": "cost_by_resource_query",
+                                "query": {
+                                    "datasetName": "e1a1b001",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "`resource_name`", "name": "resource_name"},
+                                        {"expression": "MEASURE(`total_cost_usd`)", "name": "measure(total_cost_usd)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 3,
+                            "widgetType": "bar",
+                            "data": {"queryName": "cost_by_resource_query"},
+                            "encodings": {
+                                "x": {"fieldName": "resource_name", "displayName": "Job / pipeline", "scale": {"type": "categorical"}},
+                                "y": {"fieldName": "measure(total_cost_usd)", "displayName": "Cost (USD)", "scale": {"type": "quantitative"}},
+                                "color": {"fieldName": "resource_name", "displayName": "Job / pipeline", "scale": {"type": "categorical"}}
+                            },
+                            "frame": {"showTitle": true, "title": "Cost by Job / Pipeline"}
+                        }
+                    }
+                },
+                {
+                    "position": {"x": 0, "y": 9, "width": 12, "height": 6},
+                    "widget": {
+                        "name": "cost_by_day",
+                        "queries": [
+                            {
+                                "name": "cost_by_day_query",
+                                "query": {
+                                    "datasetName": "e1a1b001",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "`usage_date`", "name": "usage_date"},
+                                        {"expression": "MEASURE(`total_cost_usd`)", "name": "measure(total_cost_usd)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 3,
+                            "widgetType": "line",
+                            "data": {"queryName": "cost_by_day_query"},
+                            "encodings": {
+                                "x": {"fieldName": "usage_date", "displayName": "Date", "scale": {"type": "temporal"}},
+                                "y": {"fieldName": "measure(total_cost_usd)", "displayName": "Cost (USD)", "scale": {"type": "quantitative"}}
+                            },
+                            "frame": {"showTitle": true, "title": "Daily Cost Trend"}
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "uiSettings": {
+        "applyModeEnabled": false,
+        "theme": {"widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"}
+    }
+}

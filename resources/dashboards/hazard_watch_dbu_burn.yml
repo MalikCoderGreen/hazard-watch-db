@@ -1,0 +1,7 @@
+resources:
+  dashboards:
+    hazard_watch_dbu_burn:
+      display_name: "Hazard Watch: DBU Burn vs $400 Cap (${bundle.target})"
+      warehouse_id: ${var.dashboard_warehouse_id}
+      file_path: ../../src/hazard_watch_dbu_burn.lvdash.json
+      parent_path: /Users/green.malik5@gmail.com

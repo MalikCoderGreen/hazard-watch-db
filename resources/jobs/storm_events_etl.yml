@@ -1,0 +1,37 @@
+# Manual/on-demand job -- no schedule. NCEI Storm Events CSV extracts are staged
+# manually into the landing-zone volume (see src/storm_events/storm_events_bronze_nb.py
+# header comment), so this is run via `databricks bundle run storm_events_etl`
+# after new extracts are staged, not on a recurring cadence.
+resources:
+  jobs:
+    storm_events_etl:
+      name: storm_events_etl_${bundle.target}
+      tags:
+        project: hazard_watch
+        component: storm_events
+      email_notifications:
+        on_failure:
+          - green.malik5@gmail.com
+      tasks:
+        - task_key: storm_events_bronze
+          notebook_task:
+            notebook_path: ../../src/storm_events/storm_events_bronze_nb.py
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.bronze_schema}
+              quarantine_schema: ${var.quarantine_schema}
+              source_bucket: ${var.source_bucket}
+              volume_name: ${var.volume_name}
+              dqx_whl_volume_path: ${var.dqx_whl_volume_path}
+              bundle_target: ${bundle.target}
+
+        - task_key: storm_events_silver
+          depends_on:
+            - task_key: storm_events_bronze
+          notebook_task:
+            notebook_path: ../../src/storm_events/storm_events_silver_nb.py
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.bronze_schema}
+              silver_schema: ${var.silver_schema}
+              hw_whl_volume_path: ${var.hw_whl_volume_path}

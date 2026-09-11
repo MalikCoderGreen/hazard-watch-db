@@ -1,0 +1,18 @@
+resources:
+  pipelines:
+    dlt_alerts_pipeline:
+      name: dlt_alerts_pipeline_${bundle.target}
+      catalog: ${var.catalog}
+      schema: ${var.bronze_schema}
+      serverless: true
+      tags:
+        project: hazard_watch
+        component: alerts_pipeline
+      libraries:
+        - notebook:
+            path: ../../src/pipelines/dlt_alerts_pipeline.py
+      configuration:
+        pipelines.clusterShutdown.delay: "60s"
+        hazard_watch.source_bucket: ${var.source_bucket}
+        hazard_watch.bronze_schema: ${var.bronze_schema}
+        hazard_watch.silver_schema: ${var.silver_schema}

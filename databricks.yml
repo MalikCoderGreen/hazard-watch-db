@@ -1,0 +1,87 @@
+# This is a Databricks asset bundle definition for hazard_watch.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: hazard_watch
+
+include:
+  - resources/**/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog to use
+  bronze_schema:
+    description: Schema for bronze layer
+    default: bronze
+  silver_schema:
+    description: Schema for silver layer
+    default: silver
+  gold_schema:
+    description: Schema for gold layer
+    default: gold
+  quarantine_schema:
+    description: Schema for quarantined records (own schema, not nested under bronze, for cleaner UC grants to a data-steward group)
+    default: quarantine
+  source_bucket:
+    description: S3 bucket for raw landing-zone data (USGS earthquakes + NWS alerts poller output, NOAA Storm Events extract)
+  volume_name:
+    description: Volume name for raw data landing zone
+    default: raw_landing_zone
+  dqx_whl_volume_path:
+    description: Full path to databricks-labs-dqx whl in Unity Catalog Volume
+  hw_whl_volume_path:
+    description: Full path to hw_transformations whl in Unity Catalog Volume
+  dashboard_warehouse_id:
+    description: SQL warehouse ID the Lakeview dashboards run against
+  quarantine_dashboard_file:
+    description: >-
+      Env-specific quarantine dashboard file (its dataset SQL hardcodes a
+      catalog name -- see resources/dashboards/hazard_watch_quarantine_rate.yml)
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-b4813f44-2c67.cloud.databricks.com
+    run_as:
+      service_principal_name: 112be03b-760c-4b16-8842-a42fde50f613
+    variables:
+      catalog: dev_hazard_watch
+      source_bucket: s3://hazard-watch-data-dev
+      dqx_whl_volume_path: /Volumes/dev_hazard_watch/libs/packages/databricks_labs_dqx-0.13.0-py3-none-any.whl
+      hw_whl_volume_path: /Volumes/dev_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
+      dashboard_warehouse_id: 96dbe29673902603
+      quarantine_dashboard_file: hazard_watch_quarantine_rate_dev.lvdash.json
+
+  staging:
+    mode: production
+    workspace:
+      host: https://dbc-b9fdb8d4-ebaa.cloud.databricks.com
+      root_path: /Workspace/Users/green.malik5@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    # Jobs run as this service principal, not the deploying personal user.
+    # Pipelines don't inherit this -- see resources/pipelines/*.yml or the
+    # per-pipeline permission grants applied after each env's first deploy.
+    run_as:
+      service_principal_name: 2210e1f7-c212-411d-bdac-eb2b6abe7112
+    variables:
+      catalog: staging_hazard_watch
+      source_bucket: s3://hazard-watch-data-staging
+      dqx_whl_volume_path: /Volumes/staging_hazard_watch/libs/packages/databricks_labs_dqx-0.13.0-py3-none-any.whl
+      hw_whl_volume_path: /Volumes/staging_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
+      dashboard_warehouse_id: 9087e76f0440d61e
+      quarantine_dashboard_file: hazard_watch_quarantine_rate_staging.lvdash.json
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-1886d4dd-39a5.cloud.databricks.com
+      root_path: /Workspace/Users/green.malik5@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: d7b3ae89-aca9-4dfd-991b-71eb0e0bdc6e
+    variables:
+      catalog: prod_hazard_watch
+      source_bucket: s3://hazard-watch-data-prod
+      dqx_whl_volume_path: /Volumes/prod_hazard_watch/libs/packages/databricks_labs_dqx-0.13.0-py3-none-any.whl
+      hw_whl_volume_path: /Volumes/prod_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
+      dashboard_warehouse_id: 7e154ac51f0ad7b2
+      quarantine_dashboard_file: hazard_watch_quarantine_rate_prod.lvdash.json

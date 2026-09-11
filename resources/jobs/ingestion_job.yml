@@ -1,0 +1,43 @@
+resources:
+  jobs:
+    hazard_ingestion_job:
+      name: hazard_ingestion_job_${bundle.target}
+      tags:
+        project: hazard_watch
+        component: ingestion
+      email_notifications:
+        on_failure:
+          - green.malik5@gmail.com
+      # `mode: development` (dev target) auto-pauses schedules/triggers on deploy,
+      # so this only actually fires on a schedule once deployed to staging/prod.
+      schedule:
+        quartz_cron_expression: "0 */15 * * * ?"
+        timezone_id: America/New_York
+
+      tasks:
+        - task_key: poll_usgs_earthquakes
+          notebook_task:
+            notebook_path: ../../src/ingestion/usgs_earthquakes_poller_nb.py
+            base_parameters:
+              source_bucket: ${var.source_bucket}
+              feed: all_hour
+
+        - task_key: poll_nws_alerts
+          notebook_task:
+            notebook_path: ../../src/ingestion/nws_alerts_poller_nb.py
+            base_parameters:
+              source_bucket: ${var.source_bucket}
+
+        - task_key: run_earthquakes_pipeline
+          depends_on:
+            - task_key: poll_usgs_earthquakes
+          max_retries: 3
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.dlt_earthquakes_pipeline.id}
+
+        - task_key: run_alerts_pipeline
+          depends_on:
+            - task_key: poll_nws_alerts
+          max_retries: 3
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.dlt_alerts_pipeline.id}

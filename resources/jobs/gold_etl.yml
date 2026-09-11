@@ -1,0 +1,32 @@
+resources:
+  jobs:
+    gold_etl:
+      name: gold_etl_${bundle.target}
+      tags:
+        project: hazard_watch
+        component: gold
+      email_notifications:
+        on_failure:
+          - green.malik5@gmail.com
+      # Runs after the ingestion job's 15-min DLT refreshes and after storm_events_etl
+      # have had a chance to land data for the day; daily rollup, not real-time.
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: America/New_York
+
+      tasks:
+        - task_key: dim_state_setup
+          notebook_task:
+            notebook_path: ../../src/reference/dim_state_setup_nb.py
+            base_parameters:
+              catalog: ${var.catalog}
+              silver_schema: ${var.silver_schema}
+              gold_schema: ${var.gold_schema}
+              csv_workspace_path: ${workspace.file_path}/src/reference/state_fips.csv
+
+        - task_key: run_gold_pipeline
+          depends_on:
+            - task_key: dim_state_setup
+          max_retries: 3
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.dlt_gold_pipeline.id}

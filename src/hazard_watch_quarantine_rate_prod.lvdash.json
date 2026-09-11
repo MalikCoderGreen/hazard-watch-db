@@ -1,0 +1,143 @@
+{
+    "datasets": [
+        {
+            "name": "a2b2c002",
+            "displayName": "quarantine_summary",
+            "config": {
+                "source": "SELECT\n  (SELECT COUNT(*) FROM prod_hazard_watch.bronze.storm_events_bt) AS bronze_count,\n  (SELECT COUNT(*) FROM prod_hazard_watch.quarantine.storm_events_quarantined) AS quarantine_count",
+                "dimensions": [],
+                "measures": [
+                    {
+                        "name": "quarantine_count",
+                        "displayName": "Quarantined records",
+                        "expr": "SUM(quarantine_count)"
+                    },
+                    {
+                        "name": "quarantine_rate_pct",
+                        "displayName": "Quarantine rate (%)",
+                        "expr": "SUM(quarantine_count) / NULLIF(SUM(bronze_count) + SUM(quarantine_count), 0) * 100"
+                    }
+                ],
+                "version": "1.1"
+            }
+        },
+        {
+            "name": "b3c3d003",
+            "displayName": "quarantine_by_check",
+            "config": {
+                "source": "SELECT err.name AS check_name, 'error' AS criticality, EVENT_ID\nFROM prod_hazard_watch.quarantine.storm_events_quarantined\nLATERAL VIEW explode(_errors) AS err\nUNION ALL\nSELECT warn.name AS check_name, 'warn' AS criticality, EVENT_ID\nFROM prod_hazard_watch.quarantine.storm_events_quarantined\nLATERAL VIEW explode(_warnings) AS warn",
+                "dimensions": [
+                    {"expr": "check_name"},
+                    {"expr": "criticality"}
+                ],
+                "measures": [
+                    {
+                        "name": "flag_count",
+                        "displayName": "Flag count",
+                        "expr": "COUNT(*)"
+                    }
+                ],
+                "version": "1.1"
+            }
+        }
+    ],
+    "pages": [
+        {
+            "name": "quarantine_rate_page",
+            "displayName": "Storm Events Quarantine Rate",
+            "pageType": "PAGE_TYPE_CANVAS",
+            "layoutVersion": "GRID_V1",
+            "layout": [
+                {
+                    "position": {"x": 0, "y": 0, "width": 3, "height": 3},
+                    "widget": {
+                        "name": "quarantine_count_counter",
+                        "queries": [
+                            {
+                                "name": "quarantine_count_query",
+                                "query": {
+                                    "datasetName": "a2b2c002",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "MEASURE(`quarantine_count`)", "name": "measure(quarantine_count)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 2,
+                            "widgetType": "counter",
+                            "data": {"queryName": "quarantine_count_query"},
+                            "encodings": {
+                                "value": {"fieldName": "measure(quarantine_count)", "displayName": "Quarantined records"}
+                            },
+                            "frame": {"showTitle": true, "title": "Quarantined Records"}
+                        }
+                    }
+                },
+                {
+                    "position": {"x": 3, "y": 0, "width": 3, "height": 3},
+                    "widget": {
+                        "name": "quarantine_rate_counter",
+                        "queries": [
+                            {
+                                "name": "quarantine_rate_query",
+                                "query": {
+                                    "datasetName": "a2b2c002",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "MEASURE(`quarantine_rate_pct`)", "name": "measure(quarantine_rate_pct)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 2,
+                            "widgetType": "counter",
+                            "data": {"queryName": "quarantine_rate_query"},
+                            "encodings": {
+                                "value": {"fieldName": "measure(quarantine_rate_pct)", "displayName": "Quarantine rate (%)"}
+                            },
+                            "frame": {"showTitle": true, "title": "Quarantine Rate (%)"}
+                        }
+                    }
+                },
+                {
+                    "position": {"x": 0, "y": 3, "width": 12, "height": 6},
+                    "widget": {
+                        "name": "flags_by_check",
+                        "queries": [
+                            {
+                                "name": "flags_by_check_query",
+                                "query": {
+                                    "datasetName": "b3c3d003",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {"expression": "`check_name`", "name": "check_name"},
+                                        {"expression": "`criticality`", "name": "criticality"},
+                                        {"expression": "MEASURE(`flag_count`)", "name": "measure(flag_count)"}
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 3,
+                            "widgetType": "bar",
+                            "data": {"queryName": "flags_by_check_query"},
+                            "encodings": {
+                                "x": {"fieldName": "check_name", "displayName": "DQX check", "scale": {"type": "categorical"}},
+                                "y": {"fieldName": "measure(flag_count)", "displayName": "Flagged records", "scale": {"type": "quantitative"}},
+                                "color": {"fieldName": "criticality", "displayName": "Criticality", "scale": {"type": "categorical"}}
+                            },
+                            "frame": {"showTitle": true, "title": "Flagged Records by DQX Check"}
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "uiSettings": {
+        "applyModeEnabled": false,
+        "theme": {"widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"}
+    }
+}

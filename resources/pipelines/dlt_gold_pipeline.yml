@@ -1,0 +1,17 @@
+resources:
+  pipelines:
+    dlt_gold_pipeline:
+      name: dlt_gold_pipeline_${bundle.target}
+      catalog: ${var.catalog}
+      schema: ${var.gold_schema}
+      serverless: true
+      tags:
+        project: hazard_watch
+        component: gold_pipeline
+      libraries:
+        - notebook:
+            path: ../../src/pipelines/dlt_gold_pipeline.py
+      configuration:
+        pipelines.clusterShutdown.delay: "60s"
+        hazard_watch.silver_schema: ${var.silver_schema}
+        hazard_watch.gold_schema: ${var.gold_schema}

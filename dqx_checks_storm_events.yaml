@@ -1,0 +1,84 @@
+# DQX Quality Checks: storm_events_bt (Bronze Layer)
+# Table: {catalog}.bronze.storm_events_bt
+# Source: NOAA NCEI Storm Events Database (StormEvents_details CSV extracts)
+
+# --- Required fields ---
+- criticality: error
+  check:
+    function: is_not_null_and_not_empty
+    arguments:
+      column: EVENT_ID
+
+- criticality: error
+  check:
+    function: is_not_null_and_not_empty
+    arguments:
+      column: STATE
+
+- criticality: error
+  check:
+    function: is_not_null
+    arguments:
+      column: BEGIN_DATE_TIME
+
+- criticality: error
+  check:
+    function: is_not_null_and_not_empty
+    arguments:
+      column: EVENT_TYPE
+
+# --- Domain / validity checks ---
+# NOAA's own STATE_FIPS numbering (not real Census FIPS) runs 1-99: it reuses
+# 1-78 for states/DC, but repurposes 81-99 for its own marine-zone codes
+# (Gulf of Mexico, the Great Lakes, etc.) AND for territories -- and NOAA's
+# territory codes don't match Census FIPS (e.g. Puerto Rico is 99 here vs. 72
+# in dim_state). Validate against NOAA's full domain here; state-level
+# rollups in gold join by state name, not this code, specifically because of
+# that divergence -- marine-zone rows naturally fall out there instead.
+- criticality: error
+  check:
+    function: is_in_range
+    arguments:
+      column: STATE_FIPS
+      min_limit: 1
+      max_limit: 99
+
+- criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: CZ_FIPS
+
+# MAGNITUDE's unit depends on EVENT_TYPE (knots for wind gusts, inches for
+# hail, ...), so there's no single tight, semantically-correct range across
+# all event types -- this is a loose sanity bound to catch corrupt/negative
+# values, not a real outlier detector. (Observed legitimate range in this
+# dataset: ~0.25-143.)
+- criticality: warn
+  check:
+    function: is_in_range
+    arguments:
+      column: MAGNITUDE
+      min_limit: 0
+      max_limit: 500
+
+# --- Temporal logic checks ---
+# BEGIN_DATE_TIME/END_DATE_TIME arrive as raw NCEI strings in "dd-MMM-yy
+# HH:mm:ss" format (e.g. "30-APR-24 20:33:00"), which Spark's default
+# string->timestamp cast can't parse (and a bare "<" is a lexicographic
+# string compare, not a chronological one) -- both would misfire here. Those
+# checks (not-in-future, end >= begin) are done in silver instead, after
+# `to_timestamp(..., "dd-MMM-yy HH:mm:ss")` parsing makes them meaningful.
+
+# --- Casualty fields should be non-negative when present ---
+# (DAMAGE_PROPERTY/DAMAGE_CROPS arrive as raw NCEI magnitude-suffixed strings,
+# e.g. "10.00K" -- parsed to numeric dollars in silver via hw_transformations,
+# not validated here as a range.)
+- criticality: warn
+  filter: DEATHS_DIRECT IS NOT NULL
+  check:
+    function: is_in_range
+    arguments:
+      column: DEATHS_DIRECT
+      min_limit: 0
+      max_limit: 9999
