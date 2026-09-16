@@ -1,0 +1,13 @@
+# Lakeview `.lvdash.json` files aren't processed for ${var...} substitution
+# the way .yml resource files are, so the dataset SQL's catalog reference has
+# to be baked into the file per environment -- hence 3 near-identical JSON
+# files (src/hazard_watch_top_states_{dev,staging,prod}.lvdash.json), selected
+# here via the ${var.top_states_dashboard_file} variable, same pattern as
+# resources/dashboards/hazard_watch_quarantine_rate.yml.
+resources:
+  dashboards:
+    hazard_watch_top_states:
+      display_name: "Hazard Watch: Top States by Hazard Activity (${bundle.target})"
+      warehouse_id: ${var.dashboard_warehouse_id}
+      file_path: ../../src/${var.top_states_dashboard_file}
+      parent_path: /Users/green.malik5@gmail.com

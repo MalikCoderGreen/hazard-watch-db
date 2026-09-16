@@ -38,10 +38,10 @@ consistent with using only public or synthetic data.
                             ▼                        ▼                          ▼
                  S3 landing zone              S3 landing zone           UC Volume landing zone
                             │                        │                          │
-   ══════ Lakeflow Declarative Pipeline ══════════════════════════════ │       Notebook + DQX
+   ══════ Lakeflow Declarative Pipeline ══════════════════════════════ │       Notebook
                             ▼                        ▼                          ▼
                   bronze.earthquakes_bronze   bronze.alerts_bronze      bronze.storm_events_bt
-                    (Auto Loader, schema         (Auto Loader, schema     (batch load, DQX quality
+                    (Auto Loader, schema         (Auto Loader, schema     (batch load, quality
                      evolution)                    evolution)              checks, incremental
                             │                        │                      merge — NOAA republishes
                             ▼                        ▼                      corrected annual files)
@@ -77,9 +77,9 @@ incrementally with automatic schema evolution, and declarative quality
 expectations gate what reaches the silver layer. The historical Storm Events
 dataset is ingested as scheduled notebooks instead, since it arrives as
 irregular annual batch files rather than a continuous stream — this uses
-Databricks Labs DQX to validate records and route failures to quarantine
-rather than a declarative pipeline's expectation model, which is better
-suited to streaming validation.
+quality checks to validate records and route failures to quarantine rather
+than a declarative pipeline's expectation model, which is better suited to
+streaming validation.
 
 **The gold layer is a materialized view**, not a static table. Because the
 aggregation is a pure read-and-transform over the silver tables, defining it
@@ -87,7 +87,7 @@ as a Lakeflow Declarative Pipeline lets Databricks manage refresh and
 incremental maintenance automatically, rather than relying on a scheduled
 notebook to recompute and overwrite the table on every run.
 
-**Quality gates hold rather than discard.** Every ingestion path uses DQX
+**Quality gates hold rather than discard.** Every ingestion path uses
 data-quality checks; records that fail validation are written to a dedicated
 `quarantine` schema (kept separate from `bronze` for cleaner, independently
 governed access) rather than being dropped, preserving a full audit trail of
@@ -124,7 +124,6 @@ monitor.
 ```
 hazard-watch/
 ├── databricks.yml                     # Databricks Asset Bundle config (dev/staging/prod targets)
-├── dqx_checks_storm_events.yaml       # DQX data-quality rules for Storm Events ingestion
 ├── resources/
 │   ├── pipelines/
 │   │   ├── dlt_earthquakes_pipeline.yml   # USGS bronze -> silver
@@ -132,7 +131,7 @@ hazard-watch/
 │   │   └── dlt_gold_pipeline.yml          # Gold rollup (materialized view)
 │   ├── jobs/
 │   │   ├── ingestion_job.yml          # Scheduled pollers + pipeline triggers
-│   │   ├── storm_events_etl.yml       # Storm Events batch load (DQX + incremental merge)
+│   │   ├── storm_events_etl.yml       # Storm Events batch load (quality checks + incremental merge)
 │   │   └── gold_etl.yml               # Reference data refresh + gold pipeline
 │   └── dashboards/
 │       ├── hazard_watch_dbu_burn.yml           # Cost monitoring
@@ -174,8 +173,7 @@ involved in execution.
 
 ## Data Quality
 
-Data quality is enforced with [Databricks Labs DQX](https://github.com/databrickslabs/dqx)
-at ingestion time. Checks validate required fields, referential domains
+Data quality is enforced at ingestion time. Checks validate required fields, referential domains
 (event types, magnitude ranges, geographic bounds), and temporal consistency.
 Records that fail validation are written to a dedicated `quarantine` schema
 for review rather than discarded, and the quarantine rate is tracked on its

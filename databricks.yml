@@ -36,6 +36,10 @@ variables:
     description: >-
       Env-specific quarantine dashboard file (its dataset SQL hardcodes a
       catalog name -- see resources/dashboards/hazard_watch_quarantine_rate.yml)
+  top_states_dashboard_file:
+    description: >-
+      Env-specific top-states dashboard file (its dataset SQL hardcodes a
+      catalog name -- see resources/dashboards/hazard_watch_top_states.yml)
 
 targets:
   dev:
@@ -52,6 +56,7 @@ targets:
       hw_whl_volume_path: /Volumes/dev_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
       dashboard_warehouse_id: 96dbe29673902603
       quarantine_dashboard_file: hazard_watch_quarantine_rate_dev.lvdash.json
+      top_states_dashboard_file: hazard_watch_top_states_dev.lvdash.json
 
   staging:
     mode: production
@@ -70,6 +75,7 @@ targets:
       hw_whl_volume_path: /Volumes/staging_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
       dashboard_warehouse_id: 9087e76f0440d61e
       quarantine_dashboard_file: hazard_watch_quarantine_rate_staging.lvdash.json
+      top_states_dashboard_file: hazard_watch_top_states_staging.lvdash.json
 
   prod:
     mode: production
@@ -85,3 +91,4 @@ targets:
       hw_whl_volume_path: /Volumes/prod_hazard_watch/libs/packages/hw_transformations-0.1.0-py3-none-any.whl
       dashboard_warehouse_id: 7e154ac51f0ad7b2
       quarantine_dashboard_file: hazard_watch_quarantine_rate_prod.lvdash.json
+      top_states_dashboard_file: hazard_watch_top_states_prod.lvdash.json

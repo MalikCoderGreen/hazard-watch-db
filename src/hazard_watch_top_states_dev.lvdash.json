@@ -1,0 +1,180 @@
+{
+    "datasets": [
+        {
+            "name": "t1s1e001",
+            "displayName": "top_storm_states",
+            "config": {
+                "source": "SELECT state_abbr, state_name, SUM(storm_event_count) AS storm_event_count\nFROM dev_hazard_watch.gold.agg_hazard_activity_by_state_daily\nGROUP BY state_abbr, state_name\nORDER BY storm_event_count DESC\nLIMIT 10",
+                "dimensions": [
+                    {
+                        "expr": "state_name"
+                    }
+                ],
+                "measures": [
+                    {
+                        "name": "storm_event_count",
+                        "displayName": "Storm events",
+                        "expr": "SUM(storm_event_count)"
+                    }
+                ],
+                "version": "1.1"
+            }
+        },
+        {
+            "name": "t2s2e002",
+            "displayName": "top_earthquake_states",
+            "config": {
+                "source": "SELECT state_abbr, state_name, SUM(earthquake_count) AS earthquake_count\nFROM dev_hazard_watch.gold.agg_hazard_activity_by_state_daily\nGROUP BY state_abbr, state_name\nORDER BY earthquake_count DESC\nLIMIT 10",
+                "dimensions": [
+                    {
+                        "expr": "state_name"
+                    }
+                ],
+                "measures": [
+                    {
+                        "name": "earthquake_count",
+                        "displayName": "Earthquakes",
+                        "expr": "SUM(earthquake_count)"
+                    }
+                ],
+                "version": "1.1"
+            }
+        }
+    ],
+    "pages": [
+        {
+            "name": "top_states_page",
+            "displayName": "Top States by Hazard Activity",
+            "pageType": "PAGE_TYPE_CANVAS",
+            "layoutVersion": "GRID_V1",
+            "layout": [
+                {
+                    "position": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6
+                    },
+                    "widget": {
+                        "name": "top_storm_states_bar",
+                        "queries": [
+                            {
+                                "name": "top_storm_states_query",
+                                "query": {
+                                    "datasetName": "t1s1e001",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {
+                                            "expression": "`state_name`",
+                                            "name": "state_name"
+                                        },
+                                        {
+                                            "expression": "MEASURE(`storm_event_count`)",
+                                            "name": "measure(storm_event_count)"
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 3,
+                            "widgetType": "bar",
+                            "data": {
+                                "queryName": "top_storm_states_query"
+                            },
+                            "encodings": {
+                                "x": {
+                                    "fieldName": "measure(storm_event_count)",
+                                    "displayName": "Storm events",
+                                    "scale": {
+                                        "type": "quantitative"
+                                    }
+                                },
+                                "y": {
+                                    "fieldName": "state_name",
+                                    "displayName": "State",
+                                    "scale": {
+                                        "type": "categorical",
+                                        "sort": {
+                                            "by": "x-reversed"
+                                        }
+                                    }
+                                }
+                            },
+                            "frame": {
+                                "showTitle": true,
+                                "title": "Top 10 States by Storm Events"
+                            }
+                        }
+                    }
+                },
+                {
+                    "position": {
+                        "x": 6,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6
+                    },
+                    "widget": {
+                        "name": "top_earthquake_states_bar",
+                        "queries": [
+                            {
+                                "name": "top_earthquake_states_query",
+                                "query": {
+                                    "datasetName": "t2s2e002",
+                                    "disaggregated": false,
+                                    "fields": [
+                                        {
+                                            "expression": "`state_name`",
+                                            "name": "state_name"
+                                        },
+                                        {
+                                            "expression": "MEASURE(`earthquake_count`)",
+                                            "name": "measure(earthquake_count)"
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "spec": {
+                            "version": 3,
+                            "widgetType": "bar",
+                            "data": {
+                                "queryName": "top_earthquake_states_query"
+                            },
+                            "encodings": {
+                                "x": {
+                                    "fieldName": "measure(earthquake_count)",
+                                    "displayName": "Earthquakes",
+                                    "scale": {
+                                        "type": "quantitative"
+                                    }
+                                },
+                                "y": {
+                                    "fieldName": "state_name",
+                                    "displayName": "State",
+                                    "scale": {
+                                        "type": "categorical",
+                                        "sort": {
+                                            "by": "x-reversed"
+                                        }
+                                    }
+                                }
+                            },
+                            "frame": {
+                                "showTitle": true,
+                                "title": "Top 10 States by Earthquakes"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "uiSettings": {
+        "applyModeEnabled": false,
+        "theme": {
+            "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+        }
+    }
+}
